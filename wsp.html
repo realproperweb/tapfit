@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>CROWD SURGE – Live Group Tap Game</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<style>
+:root{color-scheme:dark;--bg:#08080c;--r:#ff2d55;--y:#ffd23f;--w:#f4f4f4;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;background:var(--bg);color:#fff;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{background:radial-gradient(ellipse at 50% 0%,#3a0f1c 0%,var(--bg) 60%)}
+.grid-bg{position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);background-size:36px 36px;transform:perspective(500px) rotateX(55deg) translateY(40%);transform-origin:bottom;pointer-events:none}
+.card{background:rgba(18,18,24,.8);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(8px)}
+.neon{text-shadow:0 0 12px rgba(255,255,255,.7)}
+.live{display:inline-flex;align-items:center;gap:5px;background:var(--r);color:#fff;font-weight:900;font-size:11px;padding:2px 8px;border-radius:99px}
+.live i{width:7px;height:7px;border-radius:50%;background:#fff;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+#crowd{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;gap:6px;height:100%}
+.tile{position:relative;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-height:0}
+.tile.w{background:linear-gradient(160deg,#4a4a52,#1c1c22);border:1px solid #777}
+.tile.b{background:linear-gradient(160deg,#f2f2f2,#a9a9b2);border:1px solid #fff}
+.tile.me{box-shadow:0 0 0 2px var(--y),0 0 16px rgba(255,210,63,.7)}
+.tile svg{width:78%;flex:1;min-height:0}
+.tag{width:100%;display:flex;justify-content:space-between;padding:1px 5px;font-size:9px;font-weight:800}
+.tile.w .tag{background:#000;color:#fff}.tile.b .tag{background:#fff;color:#000;border-top:1px solid #000}
+.pop{position:fixed;pointer-events:none;font-weight:900;color:var(--y);text-shadow:0 0 8px #000;animation:up .7s ease-out forwards;z-index:20}
+@keyframes up{to{transform:translateY(-110px) scale(1.4);opacity:0}}
+.fly{position:fixed;pointer-events:none;z-index:15;animation:fly .9s ease-out forwards}
+@keyframes fly{to{transform:translate(var(--x),var(--y)) rotate(var(--r));opacity:0}}
+#btn{width:min(40vw,17vh,170px);aspect-ratio:1;border-radius:50%;border:0;position:relative;cursor:pointer;transform:rotateX(22deg);transition:transform .07s;background:none;padding:0;outline:0;transform-style:preserve-3d}
+#btn .side,#btn .face{position:absolute;inset:0;border-radius:50%}
+#btn .side{background:#7a1129;transform:translateZ(-14px);box-shadow:0 0 0 2px #3d0814,0 24px 34px rgba(255,45,85,.35)}
+#btn .face{background:radial-gradient(circle at 35% 28%,#ffc2cf,var(--r) 45%,#b0102f 100%);display:flex;align-items:center;justify-content:center;font-size:min(16vw,8vh,70px);box-shadow:inset 0 -10px 25px rgba(0,0,0,.35),inset 0 8px 18px rgba(255,255,255,.5)}
+#btn.press{transform:rotateX(22deg) translateZ(-12px) scale(.95)}
+#btn.hot .face{animation:pulse .25s infinite alternate}
+@keyframes pulse{to{box-shadow:inset 0 -10px 25px rgba(0,0,0,.35),inset 0 8px 18px rgba(255,255,255,.5),0 0 60px 12px rgba(255,255,255,.8)}}
+@keyframes shake{0%,100%{transform:translate(0)}25%{transform:translate(-3px,2px)}75%{transform:translate(3px,-2px)}}
+.shake{animation:shake .12s infinite}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<main class="relative h-full max-w-md mx-auto flex flex-col px-4 py-3 gap-2">
+  <header class="flex items-center justify-between">
+    <div><div class="font-black text-xl neon tracking-wider">CROWD<span style="color:var(--r)">SURGE</span></div><span class="live"><i></i>LIVE · <span id="np">12</span> players</span></div>
+    <div class="text-right text-xs text-white/70">Crowd record<br><b id="best" class="text-lg" style="color:var(--y)">0</b></div>
+  </header>
+
+  <section class="grid grid-cols-3 gap-2 text-center">
+    <div class="card rounded-xl py-1"><div class="text-[10px] text-white/60">TIME</div><div id="time" class="text-2xl font-black">2:30</div></div>
+    <div class="card rounded-xl py-1"><div class="text-[10px] text-white/60">CROWD TAPS</div><div id="score" class="text-2xl font-black" style="color:var(--y)">0</div></div>
+    <div class="card rounded-xl py-1"><div class="text-[10px] text-white/60">TAPS/SEC EACH</div><div id="tps" class="text-2xl font-black">0.0</div></div>
+  </section>
+
+  <div class="card rounded-full h-3 overflow-hidden"><div id="bar" class="h-full w-0" style="background:linear-gradient(90deg,#fff,var(--y),var(--r));transition:width .15s"></div></div>
+  <div class="flex justify-between text-xs"><span id="tier" class="font-bold">👥 WARM-UP</span><span id="goal" class="font-bold" style="color:var(--y)">Goal 0 / 10,000</span></div>
+
+  <div class="flex-1 min-h-0"><div id="crowd"></div></div>
+
+  <div class="flex items-center justify-center" style="perspective:700px;height:min(21vh,190px)">
+    <button id="btn" aria-label="Tap"><span class="side"></span><span class="face">👆</span></button>
+  </div>
+  <p id="hint" class="text-center text-xs text-white/60 pb-1">Group mode preview: every tap you make is mirrored by all 12 players. Tap to start the 2:30 run.</p>
+</main>
+
+<div id="over" class="fixed inset-0 z-30 hidden items-center justify-center p-5" style="background:rgba(8,8,12,.92)">
+  <div class="card rounded-2xl p-6 w-full max-w-sm text-center">
+    <div class="text-5xl mb-1" id="oEmoji">👥</div>
+    <h2 class="text-2xl font-black neon">TIME’S UP!</h2>
+    <div class="text-xs text-white/60">Crowd score</div>
+    <div class="text-6xl font-black mb-2" id="oScore" style="color:var(--y)">0</div>
+    <div class="text-sm text-white/70" id="oStats"></div>
+    <div class="text-sm text-white/70 mt-1" id="oMsg"></div>
+    <div class="mt-4 text-left text-xs text-white/70"><div class="font-bold mb-1">🏆 Today’s best crowd runs (this device)</div><ol id="lb" class="space-y-1"></ol></div>
+    <button id="again" class="mt-5 w-full rounded-xl py-3 font-black text-black text-lg" style="background:linear-gradient(90deg,#fff,var(--y))">Play again</button>
+    <button id="share" class="mt-2 w-full rounded-xl py-2 font-bold border border-white/25">Share score</button>
+  </div>
+</div>
+
+<script>
+(function(){
+var N=12,DUR=150,GOAL=10000,NAMES=['You','Ava','Kai','Zoe','Leo','Mia','Noa','Eli','Ivy','Max','Sky','Rex'],
+TIERS=[{n:'👥 WARM-UP',t:0},{n:'📣 CROWD ROARS',t:3},{n:'🏟️ STADIUM',t:6},{n:'🌊 MEGA WAVE',t:9}],
+HAIR=['','M19 22a11 11 0 0 1 22 0z M17 22h26v3H17z','M30 6a15 15 0 1 0 .1 0z','M19 24a11 11 0 0 1 22 0q-11-6-22 0z M43 20a5 5 0 1 1 0 10z'];
+var $=function(i){return document.getElementById(i)};
+var btn=$('btn'),crowd=$('crowd'),tiles=[],cnts=[];
+var running=false,end=0,stamps=[],tick=null,taps=0,tier=0,dirty=false,goalHit=false,lastMs=0;
+var today=new Date().toISOString().slice(0,10),KEY='crowdsurge:'+today;
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}}
+function save(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}}
+function best(){var a=load();return a.length?a[0].s:0}
+function fmt(s){s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function tps(){var n=performance.now();stamps=stamps.filter(function(t){return n-t<2000});return stamps.length/2}
+function beep(f){try{var c=beep.c||(beep.c=new (window.AudioContext||window.webkitAudioContext)());var o=c.createOscillator(),g=c.createGain();o.frequency.value=f;o.type='square';g.gain.value=.03;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.05)}catch(e){}}
+function fnum(n){return n.toLocaleString('en-US')}
+
+// build the crowd: alternating black and white avatars
+for(var i=0;i<N;i++){
+  var white=(i+Math.floor(i/4))%2===0, fill=white?'#f4f4f4':'#101010', line=white?'#101010':'#f4f4f4', hair=white?'#101010':'#f4f4f4', h=HAIR[i%4];
+  var t=document.createElement('div');t.className='tile '+(white?'w':'b')+(i===0?' me':'');
+  t.innerHTML='<svg viewBox="0 0 60 60" aria-hidden="true"><g class="av">'+
+   '<path d="M8 60q0-20 22-20t22 20z" fill="'+fill+'" stroke="'+line+'" stroke-width="2"/>'+
+   '<circle cx="30" cy="25" r="11" fill="'+fill+'" stroke="'+line+'" stroke-width="2"/>'+
+   (h?'<path d="'+h+'" fill="'+hair+'"'+(i%4===2?' opacity=".9"':'')+'/>':'')+
+   '<circle cx="26" cy="26" r="1.6" fill="'+line+'"/><circle cx="34" cy="26" r="1.6" fill="'+line+'"/>'+
+   '<circle class="hand" cx="48" cy="44" r="5" fill="'+fill+'" stroke="'+line+'" stroke-width="2"/></g></svg>'+
+   '<div class="tag"><span>'+NAMES[i]+'</span><b class="c">0</b></div>';
+  crowd.appendChild(t);tiles.push(t);cnts.push(t.querySelector('.c'));
+}
+
+function bounce(strong){
+  var s=strong?1.16:1.1;
+  for(var i=0;i<N;i++){
+    var av=tiles[i].querySelector('.av');
+    av.animate([{transform:'translateY(0) scale(1)'},{transform:'translateY(-4px) scale('+s+')'},{transform:'translateY(0) scale(1)'}],{duration:130,easing:'ease-out'});
+    tiles[i].querySelector('.hand').animate([{transform:'translateY(0)'},{transform:'translateY(-9px)'},{transform:'translateY(0)'}],{duration:130});
+  }
+}
+function wave(){
+  for(var i=0;i<N;i++)tiles[i].animate([{filter:'brightness(1)',transform:'scale(1)'},{filter:'brightness(1.9)',transform:'scale(1.07)'},{filter:'brightness(1)',transform:'scale(1)'}],{duration:420,delay:i*55});
+}
+function start(){
+  taps=0;stamps=[];tier=0;goalHit=false;running=true;end=performance.now()+DUR*1000;dirty=true;
+  $('hint').textContent='All 12 players are tapping with you. Tap faster to start the wave!';
+  clearInterval(tick);tick=setInterval(update,100);requestAnimationFrame(paint);
+}
+function paint(){
+  if(dirty){
+    dirty=false;var sc=taps*N;
+    for(var i=0;i<N;i++)cnts[i].textContent=taps;
+    $('score').textContent=fnum(sc);
+    $('bar').style.width=Math.min(100,sc/GOAL*100)+'%';
+    $('goal').textContent='Goal '+fnum(Math.min(sc,GOAL))+' / '+fnum(GOAL);
+  }
+  if(running)requestAnimationFrame(paint);
+}
+function update(){
+  var left=(end-performance.now())/1000;$('time').textContent=fmt(left);
+  var r=tps();$('tps').textContent=r.toFixed(1);
+  var ti=0;for(var i=0;i<TIERS.length;i++)if(r>=TIERS[i].t)ti=i;
+  if(ti!==tier){tier=ti;$('tier').textContent=TIERS[ti].n;beep(300+ti*130);if(ti>0)wave()}
+  btn.classList.toggle('hot',r>=6);
+  document.body.classList.toggle('shake',r>=10);
+  if(left<=0)finish();
+}
+function tap(x,y){
+  if(!running){if(btn.dataset.lock)return;start()}
+  stamps.push(performance.now());taps++;dirty=true;
+  bounce(tier>=2);
+  if(navigator.vibrate)try{navigator.vibrate(8)}catch(e){}
+  var p=document.createElement('div');p.className='pop';p.textContent='+'+N;
+  p.style.left=(x-12+(Math.random()*40-20))+'px';p.style.top=(y-30)+'px';document.body.appendChild(p);setTimeout(function(){p.remove()},700);
+  if(taps%5===0||tps()>=6){var f=document.createElement('div');f.className='fly';f.textContent=['✦','▪','▫','★'][Math.floor(Math.random()*4)];f.style.fontSize=(16+Math.random()*20)+'px';f.style.color=Math.random()<.5?'#fff':'#111';f.style.textShadow='0 0 4px #fff,0 0 4px #000';
+    f.style.left=x+'px';f.style.top=y+'px';f.style.setProperty('--x',(Math.random()*240-120)+'px');f.style.setProperty('--y',-(80+Math.random()*200)+'px');f.style.setProperty('--r',(Math.random()*720-360)+'deg');document.body.appendChild(f);setTimeout(function(){f.remove()},900)}
+  var sc=taps*N;
+  if(sc-lastMs>=1000||taps===1){if(Math.floor(sc/1000)>Math.floor(lastMs/1000)){wave();beep(660)}lastMs=sc}
+  if(!goalHit&&sc>=GOAL){goalHit=true;wave();beep(990);var b=btn.getBoundingClientRect();var g=document.createElement('div');g.className='pop';g.style.fontSize='28px';g.textContent='GOAL SMASHED!';g.style.left=(b.left+b.width/2-90)+'px';g.style.top=(b.top-100)+'px';document.body.appendChild(g);setTimeout(function(){g.remove()},700)}
+}
+function finish(){
+  running=false;clearInterval(tick);document.body.classList.remove('shake');btn.classList.remove('hot');lastMs=0;
+  btn.dataset.lock='1';setTimeout(function(){delete btn.dataset.lock},900);
+  var prev=best(),sc=taps*N;
+  $('oScore').textContent=fnum(sc);
+  $('oEmoji').textContent=sc>=GOAL?'🏟️':sc>=GOAL*.7?'📣':'👥';
+  $('oStats').textContent=N+' players × '+taps+' taps each · '+(sc>=GOAL?'Goal smashed ✓':fnum(GOAL-sc)+' short of the goal');
+  $('oMsg').textContent=sc>prev?'🔥 New crowd record!':'Crowd record to beat: '+fnum(prev);
+  var a=load();a.push({s:sc,id:Date.now()});a.sort(function(x,y){return y.s-x.s});a=a.slice(0,10);save(a);
+  var h='';a.slice(0,5).forEach(function(r,i){h+='<li class="flex justify-between"><span>'+(['🥇','🥈','🥉','4.','5.'][i])+' Crowd of '+N+'</span><b style="color:var(--y)">'+fnum(r.s)+'</b></li>'});
+  $('lb').innerHTML=h;$('over').style.display='flex';beep(880);
+}
+$('again').onclick=function(){
+  $('over').style.display='none';$('best').textContent=fnum(best());
+  taps=0;dirty=true;paint();$('time').textContent='2:30';$('tps').textContent='0.0';$('tier').textContent=TIERS[0].n;
+  $('hint').textContent='Tap to start the next 2:30 run.'};
+$('share').onclick=function(){
+  var t='My crowd of '+N+' scored '+fnum(taps*N)+' in 2:30 on CROWD SURGE 👥 Can you beat us?';
+  if(navigator.share){navigator.share({title:'CROWD SURGE',text:t,url:location.href}).catch(function(){})}
+  else if(navigator.clipboard){navigator.clipboard.writeText(t+' '+location.href).then(function(){$('share').textContent='Copied!'}).catch(function(){})}
+};
+$('best').textContent=fnum(best());
+btn.addEventListener('pointerdown',function(e){e.preventDefault();btn.classList.add('press');tap(e.clientX,e.clientY)});
+['pointerup','pointercancel','pointerleave'].forEach(function(ev){btn.addEventListener(ev,function(){btn.classList.remove('press')})});
+btn.addEventListener('contextmenu',function(e){e.preventDefault()});
+document.addEventListener('keydown',function(e){if(e.code==='Space'&&!e.repeat){e.preventDefault();btn.classList.add('press');var b=btn.getBoundingClientRect();tap(b.left+b.width/2,b.top+b.height/2)}});
+document.addEventListener('keyup',function(e){if(e.code==='Space')btn.classList.remove('press')});
+document.addEventListener('gesturestart',function(e){e.preventDefault()});
+})();
+</script>
+</body>
+</html>
